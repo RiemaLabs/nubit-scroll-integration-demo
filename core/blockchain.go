@@ -2357,13 +2357,11 @@ type NubitConfig struct {
 func loadConfig(filename string) (NubitConfig, error) {
 	var config NubitConfig
 
-	// 读取文件内容
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return config, err
 	}
 
-	// 解析JSON
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		return config, err

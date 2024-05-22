@@ -18,9 +18,13 @@
 package core
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/big"
 	mrand "math/rand"
 	"sort"
@@ -28,8 +32,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	share "github.com/RiemaLabs/nubit-node/da"
+	client "github.com/RiemaLabs/nubit-node/rpc/rpc/client"
+	nodeBlob "github.com/RiemaLabs/nubit-node/strucs/btx"
 	lru "github.com/hashicorp/golang-lru"
-
+	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/mclock"
 	"github.com/scroll-tech/go-ethereum/common/prque"
@@ -150,6 +157,7 @@ var defaultCacheConfig = &CacheConfig{
 	SnapshotWait:   true,
 	MPTWitness:     int(zkproof.MPTWitnessNothing),
 }
+var namespace string
 
 // BlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
@@ -216,6 +224,7 @@ type BlockChain struct {
 	prefetcher Prefetcher
 	processor  Processor // Block transaction processor interface
 	vmConfig   vm.Config
+	nubit      *client.Client
 
 	shouldPreserve func(*types.Block) bool // Function used to determine whether should preserve the given block.
 }
@@ -269,8 +278,17 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
+	config, err := loadConfig("../nubitConfig.json")
+	if err != nil {
+		log.Error("cannot get config:%w", err)
+	}
+	cn, err := client.NewClient(context.TODO(), config.RpcURL, config.Token)
+	if err != nil {
+		log.Error("create nubit fail", "err", err)
+	}
+	namespace = config.Namespace
+	bc.nubit = cn
 
-	var err error
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
 	if err != nil {
 		return nil, err
@@ -1479,6 +1497,37 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	return bc.insertChain(chain, true)
 }
 
+func (bc *BlockChain) SubmitBlobToNubit(block *types.Block) error {
+	txs := [][]byte{}
+	for i := 0; i < block.Transactions().Len(); i++ {
+		var buf bytes.Buffer
+		block.Transactions().EncodeIndex(i, &buf)
+		txs = append(txs, buf.Bytes())
+	}
+	txs1, err := MarshalBatchData(txs)
+	if err != nil {
+		log.Error("🏆    NubitDABackend.MarshalBatchData:%s", err)
+		return err
+	}
+	nsp, err := share.NewBlobNamespaceV0([]byte(namespace))
+	if nil != err {
+		log.Error("🏆    NubitDABackend.NamespaceFromBytes:%s", "err", err)
+		return err
+	}
+	body, err := nodeBlob.NewBlobV0(nsp, txs1)
+	if nil != err {
+		log.Error("🏆    NubitDABackend.NewBlobV0:%s", "err", err)
+		return err
+	}
+	blockNumber, err := bc.nubit.Blob.Submit(context.TODO(), []*nodeBlob.Blob{body}, 0.01)
+	if err != nil {
+		log.Error("🏆    NubitDABackend.Submit ", "err", err, "height", blockNumber)
+		return err
+	}
+	log.Info("🏆    NubitDABackend.Submit", "height", blockNumber)
+	return nil
+}
+
 // InsertChainWithoutSealVerification works exactly the same
 // except for seal verification, seal verification is omitted
 func (bc *BlockChain) InsertChainWithoutSealVerification(block *types.Block) (int, error) {
@@ -2285,4 +2334,40 @@ func (bc *BlockChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 	defer bc.chainmu.Unlock()
 	_, err := bc.hc.InsertHeaderChain(chain, start)
 	return 0, err
+}
+
+func MarshalBatchData(batchData [][]byte) ([]byte, error) {
+	byteArrayType, _ := abi.NewType("bytes[]", "", nil)
+	args := abi.Arguments{
+		{Type: byteArrayType, Name: "batchData"},
+	}
+	res, err := args.Pack(&batchData)
+	if err != nil {
+		return make([]byte, 0), fmt.Errorf("cannot pack batchData:%w", err)
+	}
+	return res, nil
+}
+
+type NubitConfig struct {
+	RpcURL    string `json:"rpc_url"`
+	Token     string `json:"token"`
+	Namespace string `json:"namespace"`
+}
+
+func loadConfig(filename string) (NubitConfig, error) {
+	var config NubitConfig
+
+	// 读取文件内容
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return config, err
+	}
+
+	// 解析JSON
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		return config, err
+	}
+
+	return config, nil
 }

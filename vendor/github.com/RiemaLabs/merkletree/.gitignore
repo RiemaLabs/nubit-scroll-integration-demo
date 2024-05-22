@@ -1,0 +1,9 @@
+fuzz
+*.swp
+*.out
+*.html
+*.zip
+.idea
+.vscode
+**/*.DS_Store
+

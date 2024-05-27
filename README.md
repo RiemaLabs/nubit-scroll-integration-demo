@@ -9,6 +9,16 @@ https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/6874
 [![Travis](https://travis-ci.com/scroll-tech/go-ethereum.svg?branch=master)](https://travis-ci.com/scroll-tech/go-ethereum)
 [![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://discord.gg/2stGbxwb)
 
+## Nubit
+You can change the node you want to connect to by using the nubitConfig.json. The default node is nubit-testnet-1
+```json
+{
+  "rpc_url": "",
+  "token": "",
+  "namespace": "scroll"
+}
+```
+
 ## ZK-Rollup
 
 ZK-Rollup adapts the Go Ethereum to run as Layer 2 Sequencer. The codebase is based on v1.10.13.

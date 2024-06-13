@@ -20,6 +20,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,10 +33,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	share "github.com/RiemaLabs/nubit-node/da"
-	client "github.com/RiemaLabs/nubit-node/rpc/rpc/client"
-	nodeBlob "github.com/RiemaLabs/nubit-node/strucs/btx"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/rollkit/go-da"
+	"github.com/rollkit/go-da/proxy"
 	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/mclock"
@@ -224,7 +224,7 @@ type BlockChain struct {
 	prefetcher Prefetcher
 	processor  Processor // Block transaction processor interface
 	vmConfig   vm.Config
-	nubit      *client.Client
+	nubit      da.DA
 
 	shouldPreserve func(*types.Block) bool // Function used to determine whether should preserve the given block.
 }
@@ -282,7 +282,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	if err != nil {
 		log.Error("cannot get config:%w", err)
 	}
-	cn, err := client.NewClient(context.TODO(), config.RpcURL, config.Token)
+	cn, err := proxy.NewClient(config.RpcURL, config.Token)
 	if err != nil {
 		log.Error("create nubit fail", "err", err)
 	}
@@ -1509,17 +1509,8 @@ func (bc *BlockChain) SubmitBlobToNubit(block *types.Block) error {
 		log.Error("🏆    NubitDABackend.MarshalBatchData:%s", err)
 		return err
 	}
-	nsp, err := share.NewBlobNamespaceV0([]byte(namespace))
-	if nil != err {
-		log.Error("🏆    NubitDABackend.NamespaceFromBytes:%s", "err", err)
-		return err
-	}
-	body, err := nodeBlob.NewBlobV0(nsp, txs1)
-	if nil != err {
-		log.Error("🏆    NubitDABackend.NewBlobV0:%s", "err", err)
-		return err
-	}
-	blockNumber, err := bc.nubit.Blob.Submit(context.TODO(), []*nodeBlob.Blob{body}, 0.01)
+	ns, err := hex.DecodeString(namespace)
+	blockNumber, err := bc.nubit.Submit(context.TODO(), [][]byte{txs1}, -1, ns)
 	if err != nil {
 		log.Error("🏆    NubitDABackend.Submit ", "err", err, "height", blockNumber)
 		return err

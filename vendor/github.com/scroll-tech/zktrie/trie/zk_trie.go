@@ -126,17 +126,22 @@ func (t *ZkTrie) TryDelete(key []byte) error {
 // Hash returns the root hash of SecureBinaryTrie. It does not write to the
 // database and can be used even if the trie doesn't have one.
 func (t *ZkTrie) Hash() []byte {
-	return t.tree.rootHash.Bytes()
+	root, err := t.tree.Root()
+	if err != nil {
+		panic("root failed in trie.Hash")
+	}
+	return root.Bytes()
+}
+
+// Commit flushes the trie to database
+func (t *ZkTrie) Commit() error {
+	return t.tree.Commit()
 }
 
 // Copy returns a copy of SecureBinaryTrie.
 func (t *ZkTrie) Copy() *ZkTrie {
-	cpy, err := NewZkTrieImplWithRoot(t.tree.db, t.tree.rootHash, t.tree.maxLevels)
-	if err != nil {
-		panic("clone trie failed")
-	}
 	return &ZkTrie{
-		tree: cpy,
+		tree: t.tree.Copy(),
 	}
 }
 
@@ -164,7 +169,7 @@ func (t *ZkTrie) ProveWithDeletion(key []byte, fromLevel uint, writeNode func(*N
 		return err
 	}
 	var prev *Node
-	return t.tree.prove(k, fromLevel, func(n *Node) (err error) {
+	return t.tree.Prove(k, fromLevel, func(n *Node) (err error) {
 		defer func() {
 			if err == nil {
 				err = writeNode(n)
@@ -203,7 +208,7 @@ func (t *ZkTrie) ProveWithDeletion(key []byte, fromLevel uint, writeNode func(*N
 					sibling = prev.ChildL
 				}
 
-				if siblingNode, err := t.tree.GetNode(sibling); err == nil {
+				if siblingNode, err := t.tree.getNode(sibling); err == nil {
 					onHit(n, siblingNode)
 				} else {
 					onHit(n, nil)

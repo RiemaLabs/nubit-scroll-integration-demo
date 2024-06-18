@@ -28,14 +28,21 @@ func DecodeSMTProof(data []byte) (*Node, error) {
 
 // Prove constructs a merkle proof for SMT, it respect the protocol used by the ethereum-trie
 // but save the node data with a compact form
-func (mt *ZkTrieImpl) prove(kHash *zkt.Hash, fromLevel uint, writeNode func(*Node) error) error {
+func (mt *ZkTrieImpl) Prove(kHash *zkt.Hash, fromLevel uint, writeNode func(*Node) error) error {
+	// force root hash calculation if needed
+	if _, err := mt.Root(); err != nil {
+		return err
+	}
+
+	mt.lock.RLock()
+	defer mt.lock.RUnlock()
 
 	path := getPath(mt.maxLevels, kHash[:])
 	var nodes []*Node
 	var lastN *Node
-	tn := mt.rootHash
+	tn := mt.rootKey
 	for i := 0; i < mt.maxLevels; i++ {
-		n, err := mt.GetNode(tn)
+		n, err := mt.getNode(tn)
 		if err != nil {
 			fmt.Println("get node fail", err, tn.Hex(),
 				lastN.ChildL.Hex(),
@@ -45,6 +52,7 @@ func (mt *ZkTrieImpl) prove(kHash *zkt.Hash, fromLevel uint, writeNode func(*Nod
 			)
 			return err
 		}
+		nodeHash := tn
 		lastN = n
 
 		finished := true
@@ -66,7 +74,9 @@ func (mt *ZkTrieImpl) prove(kHash *zkt.Hash, fromLevel uint, writeNode func(*Nod
 			return ErrInvalidNodeFound
 		}
 
-		nodes = append(nodes, n)
+		nCopy := n.Copy()
+		nCopy.nodeHash = nodeHash
+		nodes = append(nodes, nCopy)
 		if finished {
 			break
 		}

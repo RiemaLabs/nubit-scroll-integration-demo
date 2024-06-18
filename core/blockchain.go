@@ -278,9 +278,9 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
-	config, err := loadConfig("../nubitConfig.json")
+	config, err := loadConfig("./nubitConfig.json")
 	if err != nil {
-		log.Error("cannot get config:%w", err)
+		log.Error("load nubit config fail", "err", err)
 	}
 	cn, err := proxy.NewClient(config.RpcURL, config.Token)
 	if err != nil {

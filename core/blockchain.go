@@ -1517,10 +1517,10 @@ func (bc *BlockChain) SubmitBlobToNubit(block *types.Block) error {
 	ns, err := hex.DecodeString(namespace)
 	id, err := bc.nubit.Submit(context.TODO(), [][]byte{txs1}, -1, ns)
 	if err != nil {
-		log.Error("🏆    NubitDABackend.Submit ", "err", err, "id", id)
+		log.Error("🏆    NubitDABackend.Submit ", "err", err, "id", id, "len", len(txs1))
 		return err
 	}
-	log.Info("🏆    NubitDABackend.Submit", "id", id)
+	log.Info("🏆    NubitDABackend.Submit", "id", id, "len", len(txs1))
 	return nil
 }
 

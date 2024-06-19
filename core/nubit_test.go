@@ -13,7 +13,7 @@ func TestNubit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	namespaceStr := "0000000000000000000000000000000000000000000000007363726f6c6c"
+	namespaceStr := "00000000000000000000000000000000000000000000007363726f6c6c"
 	namespaceHex, err := hex.DecodeString(namespaceStr)
 	if err != nil {
 		t.Fatal(err)

@@ -288,6 +288,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 	namespace = config.Namespace
 	bc.nubit = cn
+	log.Info("🏆    NubitDA is ready to go!    🏆", "namespace", namespace)
 
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
 	if err != nil {
@@ -1340,6 +1341,10 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	triedb := bc.stateCache.TrieDB()
 
+	if err = bc.SubmitBlobToNubit(block); err != nil {
+		log.Error("🏆    NubitDABackend SubmitBlobToNubit error", "err", err)
+	}
+	log.Info("🏆    NubitDABackend SubmitBlobToNubit success", "block", block.Number(), "hash", block.Hash())
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.TrieDirtyDisabled {
 		if err := triedb.Commit(root, false, nil); err != nil {
@@ -1510,12 +1515,12 @@ func (bc *BlockChain) SubmitBlobToNubit(block *types.Block) error {
 		return err
 	}
 	ns, err := hex.DecodeString(namespace)
-	blockNumber, err := bc.nubit.Submit(context.TODO(), [][]byte{txs1}, -1, ns)
+	id, err := bc.nubit.Submit(context.TODO(), [][]byte{txs1}, -1, ns)
 	if err != nil {
-		log.Error("🏆    NubitDABackend.Submit ", "err", err, "height", blockNumber)
+		log.Error("🏆    NubitDABackend.Submit ", "err", err, "id", id)
 		return err
 	}
-	log.Info("🏆    NubitDABackend.Submit", "height", blockNumber)
+	log.Info("🏆    NubitDABackend.Submit", "id", id)
 	return nil
 }
 

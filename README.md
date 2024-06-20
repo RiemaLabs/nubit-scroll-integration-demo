@@ -7,7 +7,7 @@ https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/6874
 )](https://pkg.go.dev/github.com/scroll-tech/go-ethereum?tab=doc)
 [![Go Report Card](https://goreportcard.com/badge/github.com/scroll-tech/go-ethereum)](https://goreportcard.com/report/github.com/scroll-tech/go-ethereum)
 [![Travis](https://travis-ci.com/scroll-tech/go-ethereum.svg?branch=master)](https://travis-ci.com/scroll-tech/go-ethereum)
-[![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://discord.gg/2stGbxwb)
+[![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://discord.com/invite/nthXNEv)
 
 ## Nubit
 You can change the node you want to connect to by using the nubitConfig.json. The default node is nubit-testnet-1
